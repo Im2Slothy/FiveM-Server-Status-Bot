@@ -1,8 +1,8 @@
 {
   "prefix": "!",
-  "Server_ip": "x",
-  "Channel_id": null,
-  "Message_id": null,
+  "Server_ip": "x", /*Add your server IP here, EX: 123.12.1.123:30120*/
+  "Channel_id": null, /*DONT TOUCH*/
+  "Message_id": null, /*DONT TOUCH*/
   "color_filter": [
     "^0",
     "^1",
