@@ -112,7 +112,7 @@ async def set_status(ctx, *, Channel : discord.TextChannel = None):
         elif ip == None :
             await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Enter the IP into the Config file!"))
             embed=discord.Embed(color=0xe40000)
-            embed.description = "pls set ip and port in config file !"
+            embed.description = "Set the IP and Port into the config file"
             embed.set_footer(text="Updated automatically every 60 seconds")
             try:
                 msg = await ctx.send(embed=embed)
