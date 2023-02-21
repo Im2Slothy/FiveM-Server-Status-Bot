@@ -93,6 +93,7 @@ async def set_status(ctx, *, Channel : discord.TextChannel = None):
                                 Host_name = Host_name.replace(i, "")
                         embed=discord.Embed(color=0x404EED)
                         embed.description = "**Players: " + str(Get_dynamic["clients"]) + "/" + str(Get_dynamic["sv_maxclients"]) +"**\n"
+                        #embed.description = f"**Players: {Get_dynamic["clients"]}/{Get_dynamic["sv_maxclients"]}**\n"
                         embed.set_author(name=Host_name)
                         for x in Get_players:
                             embed.description += f"" # THIS IS THE CODE THAT SHOWS ALL THE PLAYERS WITH IDs - embed.description += f"\n" + "> " + "[" + str(x["id"]) + "] " + "`" + str(x["name"]) + "`" #
