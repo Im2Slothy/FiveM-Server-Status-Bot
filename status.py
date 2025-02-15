@@ -1,4 +1,3 @@
-import json
 import discord
 import requests as rq
 from discord.ext import commands, tasks
@@ -7,24 +6,17 @@ from discord.ext import commands, tasks
 intents = discord.Intents.all()
 client = commands.Bot(command_prefix='!', intents=intents)
 
-# Load configuration
-def load_config():
-    with open('config.json', 'r') as file:
-        return json.load(file)
+# Configuration class to handle settings
+class Config:
+    def __init__(self):
+        self.server_ip = None  # Add your server IP here, ex: "123.12.1.123:30120"
+        self.prefix = "!"
+        self.channel_id = None
+        self.message_id = None
+        self.color_filter = ["^0", "^1", "^2", "^3", "^4", "^5", "^6", "^7", "^8", "^9"]
 
-def save_config(data):
-    with open("config.json", 'w') as file:
-        json.dump(data, file, indent=2)
-
-def create_default_config():
-    default_config = {
-        "Server_ip": None,
-        "prefix": "!",
-        "Channel_id": None,
-        "Message_id": None,
-        "color_filter": ["^0", "^1", "^2", "^3", "^4", "^5", "^6", "^7", "^8", "^9"]
-    }
-    save_config(default_config)
+# Create global config instance
+config = Config()
 
 # Event when bot is ready
 @client.event
@@ -39,25 +31,17 @@ async def set_status(ctx, *, channel: discord.TextChannel = None):
         await msg.delete(delay=5)
         return
 
-    try:
-        config = load_config()
-    except FileNotFoundError:
-        create_default_config()
-        config = load_config()
-
-    ip = config.get("Server_ip")
-    
-    if not ip:
-        await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Set the IP in the config file!"))
-        embed = discord.Embed(description="Set the IP and Port in the config file", color=0xe40000)
+    if not config.server_ip:
+        await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Set the IP in the config!"))
+        embed = discord.Embed(description="Set the IP and Port in the config", color=0xe40000)
         embed.set_footer(text="Updated automatically every 60 seconds")
         await ctx.send(embed=embed)
         return
 
     if channel:
         try:
-            dynamic_response = rq.get(f'http://{ip}/dynamic.json', timeout=5)
-            players_response = rq.get(f'http://{ip}/players.json', timeout=5)
+            dynamic_response = rq.get(f'http://{config.server_ip}/dynamic.json', timeout=5)
+            players_response = rq.get(f'http://{config.server_ip}/players.json', timeout=5)
         except rq.RequestException:
             await ctx.send("Server is offline or IP address is incorrect.")
             return
@@ -67,7 +51,7 @@ async def set_status(ctx, *, channel: discord.TextChannel = None):
             players_data = players_response.json()
 
             hostname = dynamic_data["hostname"]
-            for color in config["color_filter"]:
+            for color in config.color_filter:
                 hostname = hostname.replace(color, "")
 
             embed = discord.Embed(description=f"**Players: {dynamic_data['clients']}/{dynamic_data['sv_maxclients']}**", color=0x404EED)
@@ -75,9 +59,8 @@ async def set_status(ctx, *, channel: discord.TextChannel = None):
             embed.set_footer(text="Updated automatically every 60 seconds")
 
             msg = await channel.send(embed=embed)
-            config["Channel_id"] = channel.id
-            config["Message_id"] = msg.id
-            save_config(config)
+            config.channel_id = channel.id
+            config.message_id = msg.id
         else:
             await ctx.send("Failed to retrieve server status.")
     else:
@@ -88,25 +71,16 @@ async def set_status(ctx, *, channel: discord.TextChannel = None):
 async def check_players():
     await client.wait_until_ready()
 
-    try:
-        config = load_config()
-    except FileNotFoundError:
-        create_default_config()
-        config = load_config()
-
-    ip = config.get("Server_ip")
-    if not ip:
+    if not config.server_ip:
         return
 
-    channel_id = config.get("Channel_id")
-    message_id = config.get("Message_id")
-    if channel_id and message_id:
+    if config.channel_id and config.message_id:
         try:
-            dynamic_response = rq.get(f'http://{ip}/dynamic.json', timeout=5)
-            players_response = rq.get(f'http://{ip}/players.json', timeout=5)
+            dynamic_response = rq.get(f'http://{config.server_ip}/dynamic.json', timeout=5)
+            players_response = rq.get(f'http://{config.server_ip}/players.json', timeout=5)
         except rq.RequestException:
-            channel = client.get_channel(channel_id)
-            msg = await channel.fetch_message(message_id)
+            channel = client.get_channel(config.channel_id)
+            msg = await channel.fetch_message(config.message_id)
             embed = discord.Embed(description="Server is Offline", color=0xe40000)
             embed.set_footer(text="Updated automatically every 60 seconds")
             await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Server is Offline"))
@@ -116,7 +90,7 @@ async def check_players():
         if dynamic_response.status_code == 200 and players_response.status_code == 200:
             dynamic_data = dynamic_response.json()
             hostname = dynamic_data["hostname"]
-            for color in config["color_filter"]:
+            for color in config.color_filter:
                 hostname = hostname.replace(color, "")
 
             embed = discord.Embed(
@@ -126,8 +100,8 @@ async def check_players():
             embed.set_author(name=hostname)
             embed.set_footer(text="Updated automatically every 60 seconds")
 
-            channel = client.get_channel(channel_id)
-            msg = await channel.fetch_message(message_id)
+            channel = client.get_channel(config.channel_id)
+            msg = await channel.fetch_message(config.message_id)
             await msg.edit(embed=embed)
 
             await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"Players: {dynamic_data['clients']}/{dynamic_data['sv_maxclients']}"))
@@ -135,10 +109,9 @@ async def check_players():
 # Command to manually check and display server status
 @client.command()
 async def status(ctx):    
-    ip = config.get("Server_ip")
     try:
-        dynamic_response = rq.get(f'http://{ip}/dynamic.json', timeout=5)
-        players_response = rq.get(f'http://{ip}/players.json', timeout=5)
+        dynamic_response = rq.get(f'http://{config.server_ip}/dynamic.json', timeout=5)
+        players_response = rq.get(f'http://{config.server_ip}/players.json', timeout=5)
     except rq.RequestException:
         await ctx.send("Failed to retrieve server status.")
         return
@@ -155,5 +128,8 @@ async def status(ctx):
 # Start the check_players loop
 check_players.start()
 
+TOKEN = 'YOUR_BOT_TOKEN'  # Add your bot token here
+config.server_ip = 'YOUR_SERVER_IP'  # Add your server IP here (e.g., "123.12.1.123:30120")
+
 # Run the bot
-client.run('YOUR_BOT_TOKEN')
+client.run(TOKEN)
